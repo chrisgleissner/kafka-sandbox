@@ -13,10 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.github.chrisgleissner.jutil.kafka.streams;
+package com.github.chrisgleissner.kafkasandbox.streams;
 
-import com.github.chrisgleissner.jutil.kafka.fixture.EmbeddedSingleNodeKafkaCluster;
-import com.github.chrisgleissner.jutil.kafka.fixture.IntegrationTestUtils;
+import com.github.chrisgleissner.kafkasandbox.fixture.IntegrationTestUtils;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.producer.ProducerConfig;
@@ -34,7 +33,6 @@ import org.apache.kafka.streams.state.WindowStore;
 import org.apache.kafka.streams.state.WindowStoreIterator;
 import org.apache.kafka.test.TestUtils;
 import org.junit.BeforeClass;
-import org.junit.ClassRule;
 import org.junit.Test;
 
 import java.util.List;
@@ -75,8 +73,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 @Slf4j
 public class EventDeduplicationLambdaIntegrationTest {
 
-    @ClassRule
-    public static final EmbeddedSingleNodeKafkaCluster CLUSTER = new EmbeddedSingleNodeKafkaCluster();
+    //@ClassRule
+    //public static final EmbeddedSingleNodeKafkaCluster CLUSTER = new EmbeddedSingleNodeKafkaCluster();
+
+    private static final String BOOTSTRAP_SERVERS = "localhost:19092";
 
     private static String inputTopic = "inputTopic";
     private static String outputTopic = "outputTopic";
@@ -85,8 +85,9 @@ public class EventDeduplicationLambdaIntegrationTest {
 
     @BeforeClass
     public static void startKafkaCluster() {
-        CLUSTER.createTopic(inputTopic);
-        CLUSTER.createTopic(outputTopic);
+        //CLUSTER.createTopic(inputTopic);
+        //CLUSTER.createTopic(outputTopic);
+        //CLUSTER.createTopic(outputTopic);
     }
 
     /**
@@ -187,7 +188,7 @@ public class EventDeduplicationLambdaIntegrationTest {
     @Test
     public void shouldRemoveDuplicatesFromTheInput() throws Exception {
         KafkaStreams streams = configureStreams();
-        List<String> ids = IntStream.range(0, 10_000).mapToObj(i -> randomUUID().toString()).collect(toList());
+        List<String> ids = IntStream.range(0, 100_000).mapToObj(i -> randomUUID().toString()).collect(toList());
         produceInput(ids);
         verifyOutput(ids, streams);
     }
@@ -200,7 +201,7 @@ public class EventDeduplicationLambdaIntegrationTest {
 
         Properties streamsConfiguration = new Properties();
         streamsConfiguration.put(APPLICATION_ID_CONFIG, "deduplication-lambda-integration-test");
-        streamsConfiguration.put(BOOTSTRAP_SERVERS_CONFIG, CLUSTER.bootstrapServers());
+        streamsConfiguration.put(BOOTSTRAP_SERVERS_CONFIG, BOOTSTRAP_SERVERS);
         streamsConfiguration.put(DEFAULT_KEY_SERDE_CLASS_CONFIG, Serdes.ByteArray().getClass().getName());
         streamsConfiguration.put(DEFAULT_VALUE_SERDE_CLASS_CONFIG, Serdes.String().getClass().getName());
         // The commit interval for flushing records to state stores and downstream must be lower than
@@ -256,7 +257,7 @@ public class EventDeduplicationLambdaIntegrationTest {
 
     private void verifyOutput(List<String> expectedValues, KafkaStreams streams) throws InterruptedException {
         Properties consumerConfig = new Properties();
-        consumerConfig.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, CLUSTER.bootstrapServers());
+        consumerConfig.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, BOOTSTRAP_SERVERS);
         consumerConfig.put(ConsumerConfig.GROUP_ID_CONFIG, "deduplication-integration-test-standard-consumer");
         consumerConfig.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
         consumerConfig.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, ByteArrayDeserializer.class);
@@ -271,7 +272,7 @@ public class EventDeduplicationLambdaIntegrationTest {
 
     private void produceInput(List<String> inputValues) throws java.util.concurrent.ExecutionException, InterruptedException {
         Properties producerConfig = new Properties();
-        producerConfig.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, CLUSTER.bootstrapServers());
+        producerConfig.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, BOOTSTRAP_SERVERS);
         producerConfig.put(ProducerConfig.ACKS_CONFIG, "all");
         producerConfig.put(ProducerConfig.RETRIES_CONFIG, 0);
         producerConfig.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, ByteArraySerializer.class);
