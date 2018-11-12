@@ -1,7 +1,6 @@
 # kafka-sandbox
 
 [![Build Status](https://travis-ci.org/chrisgleissner/kafka-sandbox.svg?branch=master)](https://travis-ci.org/chrisgleissner/kafka-sandbox)
-[![Coverage Status](https://coveralls.io/repos/github/chrisgleissner/jutil/badge.svg?branch=master)](https://coveralls.io/github/chrisgleissner/jutil?branch=master)
 
 Sandbox for Kafka Streams development.
 
