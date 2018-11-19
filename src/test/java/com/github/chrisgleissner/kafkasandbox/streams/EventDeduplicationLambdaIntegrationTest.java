@@ -124,9 +124,8 @@ public class EventDeduplicationLambdaIntegrationTest {
          *                                     de-duping but forwarded as-is.
          */
         DeduplicationTransformer(long maintainDurationPerEventInMs, KeyValueMapper<K, V, E> idExtractor) {
-            if (maintainDurationPerEventInMs < 1) {
+            if (maintainDurationPerEventInMs < 1)
                 throw new IllegalArgumentException("maintain duration per event must be >= 1");
-            }
             leftDurationMs = maintainDurationPerEventInMs / 2;
             rightDurationMs = maintainDurationPerEventInMs - leftDurationMs;
             this.idExtractor = idExtractor;
@@ -158,10 +157,7 @@ public class EventDeduplicationLambdaIntegrationTest {
 
         private boolean isDuplicate(final E eventId) {
             long eventTime = context.timestamp();
-            WindowStoreIterator<Long> timeIterator = eventIdStore.fetch(
-                    eventId,
-                    eventTime - leftDurationMs,
-                    eventTime + rightDurationMs);
+            WindowStoreIterator<Long> timeIterator = eventIdStore.fetch(eventId, eventTime - leftDurationMs, eventTime + rightDurationMs);
             boolean isDuplicate = timeIterator.hasNext();
             timeIterator.close();
             return isDuplicate;
@@ -261,8 +257,7 @@ public class EventDeduplicationLambdaIntegrationTest {
         consumerConfig.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, ByteArrayDeserializer.class);
         consumerConfig.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
         long startTime = currentTimeMillis();
-        List<String> actualValues = IntegrationTestUtils.waitUntilMinValuesRecordsReceived(consumerConfig,
-                outputTopic, expectedValues.size());
+        List<String> actualValues = IntegrationTestUtils.waitUntilMinValuesRecordsReceived(consumerConfig, outputTopic, expectedValues.size());
         streams.close();
         log.info("Received {} value(s) [{}ms]", actualValues.size(), currentTimeMillis() - startTime);
         assertThat(actualValues).containsExactlyElementsOf(expectedValues);
