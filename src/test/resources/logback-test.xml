@@ -5,6 +5,12 @@
         </encoder>
     </appender>
 
+    <logger name="io.confluent.kafka" level="WARN" />
+    <logger name="kafka.log" level="WARN"/>
+    <logger name="kafka.server" level="WARN"/>
+    <logger name="org.apache.kafka.clients" level="WARN"/>
+    <logger name="org.apache.zookeeper" level="WARN"/>
+
     <root level="info">
         <appender-ref ref="consoleAppender"/>
     </root>
