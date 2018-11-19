@@ -20,6 +20,7 @@ import io.confluent.kafka.schemaregistry.avro.AvroCompatibilityLevel;
 import io.confluent.kafka.schemaregistry.rest.SchemaRegistryConfig;
 import kafka.server.KafkaConfig$;
 import kafka.utils.ZkUtils;
+import org.apache.kafka.clients.admin.KafkaAdminClient;
 import org.apache.kafka.common.errors.UnknownTopicOrPartitionException;
 import org.apache.kafka.common.security.JaasUtils;
 import org.apache.kafka.test.TestCondition;
@@ -44,9 +45,7 @@ public class EmbeddedSingleNodeKafkaCluster extends ExternalResource {
     private static final int DEFAULT_BROKER_PORT = 0; // 0 results in a random port being selected
     private static final String KAFKA_SCHEMAS_TOPIC = "_schemas";
     private static final String AVRO_COMPATIBILITY_TYPE = AvroCompatibilityLevel.NONE.name;
-
     private static final String KAFKASTORE_OPERATION_TIMEOUT_MS = "10000";
-    private static final String KAFKASTORE_DEBUG = "true";
     private static final String KAFKASTORE_INIT_TIMEOUT = "90000";
 
     private ZooKeeperEmbedded zookeeper;
@@ -65,17 +64,12 @@ public class EmbeddedSingleNodeKafkaCluster extends ExternalResource {
 
     /**
      * Creates and starts the cluster.
-     *
-     * @param brokerConfig Additional broker configuration settings.
      */
     public EmbeddedSingleNodeKafkaCluster(Properties brokerConfig) {
         this.brokerConfig = new Properties();
         this.brokerConfig.putAll(brokerConfig);
     }
 
-    /**
-     * Creates and starts the cluster.
-     */
     public void start() throws Exception {
         log.debug("Initiating embedded Kafka cluster startup");
         log.debug("Starting a ZooKeeper instance...");
@@ -132,26 +126,20 @@ public class EmbeddedSingleNodeKafkaCluster extends ExternalResource {
         stop();
     }
 
-    /**
-     * Stops the cluster.
-     */
     public void stop() {
         log.info("Stopping Confluent");
         try {
             try {
-                if (schemaRegistry != null) {
+                if (schemaRegistry != null)
                     schemaRegistry.stop();
-                }
             } catch (Exception e) {
                 throw new RuntimeException(e);
             }
-            if (broker != null) {
+            if (broker != null)
                 broker.stop();
-            }
             try {
-                if (zookeeper != null) {
+                if (zookeeper != null)
                     zookeeper.stop();
-                }
             } catch (IOException e) {
                 throw new RuntimeException(e);
             }
@@ -238,9 +226,8 @@ public class EmbeddedSingleNodeKafkaCluster extends ExternalResource {
             }
         }
 
-        if (timeoutMs > 0) {
+        if (timeoutMs > 0)
             TestUtils.waitForCondition(new TopicsDeletedCondition(topics), timeoutMs, "Topics not deleted after " + timeoutMs + " milli seconds.");
-        }
     }
 
     public boolean isRunning() {
