@@ -15,6 +15,9 @@
  */
 package com.github.chrisgleissner.jutil.kafka.fixture;
 
+import lombok.extern.slf4j.Slf4j;
+import org.apache.kafka.clients.admin.AdminClient;
+import org.apache.kafka.clients.admin.NewTopic;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
@@ -30,19 +33,22 @@ import org.apache.kafka.streams.state.ReadOnlyKeyValueStore;
 import org.apache.kafka.streams.state.ReadOnlyWindowStore;
 import org.apache.kafka.streams.state.WindowStoreIterator;
 import org.apache.kafka.test.TestUtils;
+import org.glassfish.hk2.api.Self;
 
 import java.util.*;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.stream.Collectors;
 
-/**
- * Utility functions to make integration testing more convenient.
- */
+@Slf4j
 public class IntegrationTestUtils {
-
     private static final int UNLIMITED_MESSAGES = -1;
     public static final long DEFAULT_TIMEOUT = 30 * 1000L;
+
+    public static void createTopic(Properties properties, String topicName, int numPartitions, int replicationFactor) {
+        AdminClient.create(properties).createTopics(List.of(new NewTopic(topicName, numPartitions, (short) replicationFactor)));
+        log.info("Created topic {}", topicName);
+    }
 
     /**
      * Returns up to `maxMessages` message-values from the topic.
@@ -100,13 +106,6 @@ public class IntegrationTestUtils {
         return maxMessages <= 0 || messagesConsumed < maxMessages;
     }
 
-    /**
-     * @param topic          Kafka topic to write the data records to
-     * @param records        Data records to write to Kafka
-     * @param producerConfig Kafka producer configuration
-     * @param <K>            Key type of the data records
-     * @param <V>            Value type of the data records
-     */
     public static <K, V> void produceKeyValuesSynchronously(
             String topic, Collection<KeyValue<K, V>> records, Properties producerConfig)
             throws ExecutionException, InterruptedException {
@@ -138,17 +137,12 @@ public class IntegrationTestUtils {
     /**
      * Wait until enough data (key-value records) has been consumed.
      *
-     * @param consumerConfig     Kafka Consumer configuration
-     * @param topic              Topic to consume from
-     * @param expectedNumRecords Minimum number of expected records
-     * @param waitTime           Upper bound in waiting time in milliseconds
      * @return All the records consumed, or null if no records are consumed
-     * @throws AssertionError if the given wait time elapses
      */
     public static <K, V> List<KeyValue<K, V>> waitUntilMinKeyValueRecordsReceived(Properties consumerConfig,
                                                                                   String topic,
                                                                                   int expectedNumRecords,
-                                                                                  long waitTime) throws InterruptedException {
+                                                                                  long maxWaitTimeInMillis) throws InterruptedException {
         List<KeyValue<K, V>> accumData = new ArrayList<>();
         long startTime = System.currentTimeMillis();
         while (true) {
@@ -156,11 +150,11 @@ public class IntegrationTestUtils {
             accumData.addAll(readData);
             if (accumData.size() >= expectedNumRecords)
                 return accumData;
-            if (System.currentTimeMillis() > startTime + waitTime)
+            if (System.currentTimeMillis() > startTime + maxWaitTimeInMillis)
                 throw new AssertionError("Expected " + expectedNumRecords +
                         " but received only " + accumData.size() +
-                        " records before timeout " + waitTime + " ms");
-            Thread.sleep(Math.min(waitTime, 100L));
+                        " records before timeout " + maxWaitTimeInMillis + " ms");
+            Thread.sleep(Math.min(maxWaitTimeInMillis, 100L));
         }
     }
 
@@ -174,17 +168,12 @@ public class IntegrationTestUtils {
     /**
      * Wait until enough data (value records) has been consumed.
      *
-     * @param consumerConfig     Kafka Consumer configuration
-     * @param topic              Topic to consume from
-     * @param expectedNumRecords Minimum number of expected records
-     * @param waitTime           Upper bound in waiting time in milliseconds
      * @return All the records consumed, or null if no records are consumed
-     * @throws AssertionError if the given wait time elapses
      */
     public static <V> List<V> waitUntilMinValuesRecordsReceived(Properties consumerConfig,
                                                                 String topic,
                                                                 int expectedNumRecords,
-                                                                long waitTime) throws InterruptedException {
+                                                                long maxWaitTimeInMillis) throws InterruptedException {
         List<V> accumData = new ArrayList<>();
         long startTime = System.currentTimeMillis();
         while (true) {
@@ -192,11 +181,11 @@ public class IntegrationTestUtils {
             accumData.addAll(readData);
             if (accumData.size() >= expectedNumRecords)
                 return accumData;
-            if (System.currentTimeMillis() > startTime + waitTime)
+            if (System.currentTimeMillis() > startTime + maxWaitTimeInMillis)
                 throw new AssertionError("Expected " + expectedNumRecords +
                         " but received only " + accumData.size() +
-                        " records before timeout " + waitTime + " ms");
-            Thread.sleep(Math.min(waitTime, 100L));
+                        " records before timeout " + maxWaitTimeInMillis + " ms");
+            Thread.sleep(Math.min(maxWaitTimeInMillis, 100L));
         }
     }
 
@@ -269,5 +258,4 @@ public class IntegrationTestUtils {
                 30000,
                 "Expected values not found in WindowStore");
     }
-
 }

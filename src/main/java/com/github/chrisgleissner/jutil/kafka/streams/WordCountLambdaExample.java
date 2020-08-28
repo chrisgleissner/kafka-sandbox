@@ -111,7 +111,7 @@ import java.util.regex.Pattern;
  */
 public class WordCountLambdaExample {
 
-  public static void main(final String[] args) throws Exception {
+  public static void main(final String[] args)  {
     final String bootstrapServers = args.length > 0 ? args[0] : "localhost:9092";
     final Properties streamsConfiguration = new Properties();
     // Give the Streams application a unique name.  The name must be unique in the Kafka cluster
@@ -187,5 +187,4 @@ public class WordCountLambdaExample {
     // Add shutdown hook to respond to SIGTERM and gracefully close Kafka Streams
     Runtime.getRuntime().addShutdownHook(new Thread(streams::close));
   }
-
 }
