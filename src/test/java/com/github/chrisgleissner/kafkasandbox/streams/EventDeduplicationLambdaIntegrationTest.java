@@ -15,11 +15,10 @@
  */
 package com.github.chrisgleissner.kafkasandbox.streams;
 
-import com.github.chrisgleissner.jutil.kafka.fixture.IntegrationTestUtils;
-import com.salesforce.kafka.test.junit5.SharedKafkaTestResource;
-import com.github.chrisgleissner.kafkasandbox.fixture.EmbeddedSingleNodeKafkaCluster;
 import com.github.chrisgleissner.kafkasandbox.fixture.IntegrationTestUtils;
+import com.salesforce.kafka.test.junit5.SharedKafkaTestResource;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.kafka.clients.CommonClientConfigs;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.common.serialization.ByteArrayDeserializer;
@@ -52,7 +51,12 @@ import static java.lang.System.currentTimeMillis;
 import static java.util.UUID.randomUUID;
 import static java.util.concurrent.TimeUnit.MINUTES;
 import static java.util.stream.Collectors.toList;
-import static org.apache.kafka.streams.StreamsConfig.*;
+import static org.apache.kafka.streams.StreamsConfig.APPLICATION_ID_CONFIG;
+import static org.apache.kafka.streams.StreamsConfig.BOOTSTRAP_SERVERS_CONFIG;
+import static org.apache.kafka.streams.StreamsConfig.COMMIT_INTERVAL_MS_CONFIG;
+import static org.apache.kafka.streams.StreamsConfig.DEFAULT_KEY_SERDE_CLASS_CONFIG;
+import static org.apache.kafka.streams.StreamsConfig.DEFAULT_VALUE_SERDE_CLASS_CONFIG;
+import static org.apache.kafka.streams.StreamsConfig.STATE_DIR_CONFIG;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
@@ -90,7 +94,7 @@ public class EventDeduplicationLambdaIntegrationTest {
     @BeforeAll
     public static void startKafkaCluster() {
         Properties props = new Properties();
-        props.put(StreamsConfig.BOOTSTRAP_SERVERS_CONFIG, kafka.getKafkaConnectString());
+        props.put(CommonClientConfigs.BOOTSTRAP_SERVERS_CONFIG, kafka.getKafkaConnectString());
         IntegrationTestUtils.createTopic(props, INPUT_TOPIC_NAME, 1, 1);
         IntegrationTestUtils.createTopic(props, OUTPUT_TOPIC_NAME, 1, 1);
     }
@@ -202,7 +206,7 @@ public class EventDeduplicationLambdaIntegrationTest {
 
         Properties streamsConfiguration = new Properties();
         streamsConfiguration.put(APPLICATION_ID_CONFIG, "deduplication-lambda-integration-test");
-        streamsConfiguration.put(BOOTSTRAP_SERVERS_CONFIG, CLUSTER.bootstrapServers());
+        streamsConfiguration.put(BOOTSTRAP_SERVERS_CONFIG, kafka.getKafkaConnectString());
         streamsConfiguration.put(DEFAULT_KEY_SERDE_CLASS_CONFIG, Serdes.ByteArray().getClass().getName());
         streamsConfiguration.put(DEFAULT_VALUE_SERDE_CLASS_CONFIG, Serdes.String().getClass().getName());
         // The commit interval for flushing records to state stores and downstream must be lower than
@@ -258,13 +262,13 @@ public class EventDeduplicationLambdaIntegrationTest {
 
     private void verifyOutput(List<String> expectedValues, KafkaStreams streams) throws InterruptedException {
         Properties consumerConfig = new Properties();
-        consumerConfig.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, CLUSTER.bootstrapServers());
+        consumerConfig.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, kafka.getKafkaConnectString());
         consumerConfig.put(ConsumerConfig.GROUP_ID_CONFIG, "deduplication-integration-test-standard-consumer");
         consumerConfig.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
         consumerConfig.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, ByteArrayDeserializer.class);
         consumerConfig.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
         long startTime = currentTimeMillis();
-        List<String> actualValues = IntegrationTestUtils.waitUntilMinValuesRecordsReceived(consumerConfig, outputTopic, expectedValues.size());
+        List<String> actualValues = IntegrationTestUtils.waitUntilMinValuesRecordsReceived(consumerConfig, OUTPUT_TOPIC_NAME, expectedValues.size());
         streams.close();
         log.info("Received {} value(s) [{}ms]", actualValues.size(), currentTimeMillis() - startTime);
         assertThat(actualValues).containsExactlyElementsOf(expectedValues);
@@ -272,13 +276,13 @@ public class EventDeduplicationLambdaIntegrationTest {
 
     private void produceInput(List<String> inputValues) throws java.util.concurrent.ExecutionException, InterruptedException {
         Properties producerConfig = new Properties();
-        producerConfig.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, CLUSTER.bootstrapServers());
+        producerConfig.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, kafka.getKafkaConnectString());
         producerConfig.put(ProducerConfig.ACKS_CONFIG, "all");
         producerConfig.put(ProducerConfig.RETRIES_CONFIG, 0);
         producerConfig.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, ByteArraySerializer.class);
         producerConfig.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
         long startTime = currentTimeMillis();
-        IntegrationTestUtils.produceValuesSynchronously(inputTopic, inputValues, producerConfig);
+        IntegrationTestUtils.produceValuesSynchronously(INPUT_TOPIC_NAME, inputValues, producerConfig);
         log.info("Produced {} input value(s) [{}ms]", inputValues.size(), currentTimeMillis() - startTime);
     }
 }
