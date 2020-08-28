@@ -16,8 +16,6 @@
 package com.github.chrisgleissner.kafkasandbox.fixture;
 
 import lombok.extern.slf4j.Slf4j;
-import org.apache.kafka.clients.admin.AdminClient;
-import org.apache.kafka.clients.admin.NewTopic;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
@@ -33,22 +31,22 @@ import org.apache.kafka.streams.state.ReadOnlyKeyValueStore;
 import org.apache.kafka.streams.state.ReadOnlyWindowStore;
 import org.apache.kafka.streams.state.WindowStoreIterator;
 import org.apache.kafka.test.TestUtils;
-import org.glassfish.hk2.api.Self;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import java.util.Properties;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
-import java.util.stream.Collectors;
+
+import static java.util.stream.Collectors.toList;
 
 @Slf4j
-public class IntegrationTestUtils {
+public class KafkaFixture {
     private static final int UNLIMITED_MESSAGES = -1;
     public static final long DEFAULT_TIMEOUT = 30 * 1000L;
-
-    public static void createTopic(Properties properties, String topicName, int numPartitions, int replicationFactor) {
-        AdminClient.create(properties).createTopics(List.of(new NewTopic(topicName, numPartitions, (short) replicationFactor)));
-        log.info("Created topic {}", topicName);
-    }
 
     /**
      * Returns up to `maxMessages` message-values from the topic.
@@ -59,8 +57,7 @@ public class IntegrationTestUtils {
      * @return The values retrieved via the consumer.
      */
     public static <K, V> List<V> readValues(String topic, Properties consumerConfig, int maxMessages) {
-        List<KeyValue<K, V>> kvs = readKeyValues(topic, consumerConfig, maxMessages);
-        return kvs.stream().map(kv -> kv.value).collect(Collectors.toList());
+        return KafkaFixture.<K, V>readKeyValues(topic, consumerConfig, maxMessages).stream().map(kv -> kv.value).collect(toList());
     }
 
     /**
@@ -123,7 +120,7 @@ public class IntegrationTestUtils {
             String topic, Collection<V> records, Properties producerConfig)
             throws ExecutionException, InterruptedException {
         Collection<KeyValue<Object, V>> keyedRecords =
-                records.stream().map(record -> new KeyValue<>(null, record)).collect(Collectors.toList());
+                records.stream().map(record -> new KeyValue<>(null, record)).collect(toList());
         produceKeyValuesSynchronously(topic, keyedRecords, producerConfig);
     }
 

@@ -15,7 +15,8 @@
  */
 package com.github.chrisgleissner.kafkasandbox.streams;
 
-import com.github.chrisgleissner.kafkasandbox.fixture.IntegrationTestUtils;
+import com.github.chrisgleissner.kafkasandbox.fixture.KafkaAdmin;
+import com.github.chrisgleissner.kafkasandbox.fixture.KafkaFixture;
 import com.salesforce.kafka.test.junit5.SharedKafkaTestResource;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.producer.ProducerConfig;
@@ -62,8 +63,7 @@ public class WordCountLambdaIntegrationTest {
     public static void startKafkaCluster() {
         Properties props = new Properties();
         props.put(StreamsConfig.BOOTSTRAP_SERVERS_CONFIG, kafka.getKafkaConnectString());
-        IntegrationTestUtils.createTopic(props, INPUT_TOPIC_NAME, 1, 1);
-        IntegrationTestUtils.createTopic(props, OUTPUT_TOPIC_NAME, 1, 1);
+        new KafkaAdmin(props).createTopic(INPUT_TOPIC_NAME).createTopic(OUTPUT_TOPIC_NAME);
     }
 
     @Test
@@ -126,7 +126,7 @@ public class WordCountLambdaIntegrationTest {
         producerConfig.put(ProducerConfig.RETRIES_CONFIG, 0);
         producerConfig.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
         producerConfig.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
-        IntegrationTestUtils.produceValuesSynchronously(INPUT_TOPIC_NAME, inputValues, producerConfig);
+        KafkaFixture.produceValuesSynchronously(INPUT_TOPIC_NAME, inputValues, producerConfig);
 
         // Step 3: Verify the application's output data.
         Properties consumerConfig = new Properties();
@@ -135,7 +135,7 @@ public class WordCountLambdaIntegrationTest {
         consumerConfig.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
         consumerConfig.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
         consumerConfig.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, LongDeserializer.class);
-        List<KeyValue<String, Long>> actualWordCounts = IntegrationTestUtils.waitUntilMinKeyValueRecordsReceived(consumerConfig,
+        List<KeyValue<String, Long>> actualWordCounts = KafkaFixture.waitUntilMinKeyValueRecordsReceived(consumerConfig,
                 OUTPUT_TOPIC_NAME, expectedWordCounts.size());
         streams.close();
         assertThat(actualWordCounts).containsExactlyElementsOf(expectedWordCounts);

@@ -15,7 +15,8 @@
  */
 package com.github.chrisgleissner.kafkasandbox.streams;
 
-import com.github.chrisgleissner.kafkasandbox.fixture.IntegrationTestUtils;
+import com.github.chrisgleissner.kafkasandbox.fixture.KafkaAdmin;
+import com.github.chrisgleissner.kafkasandbox.fixture.KafkaFixture;
 import com.salesforce.kafka.test.junit5.SharedKafkaTestResource;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.clients.CommonClientConfigs;
@@ -95,8 +96,7 @@ public class EventDeduplicationLambdaIntegrationTest {
     public static void startKafkaCluster() {
         Properties props = new Properties();
         props.put(CommonClientConfigs.BOOTSTRAP_SERVERS_CONFIG, kafka.getKafkaConnectString());
-        IntegrationTestUtils.createTopic(props, INPUT_TOPIC_NAME, 1, 1);
-        IntegrationTestUtils.createTopic(props, OUTPUT_TOPIC_NAME, 1, 1);
+        new KafkaAdmin(props).createTopic(INPUT_TOPIC_NAME).createTopic(OUTPUT_TOPIC_NAME);
     }
 
     /**
@@ -268,7 +268,7 @@ public class EventDeduplicationLambdaIntegrationTest {
         consumerConfig.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, ByteArrayDeserializer.class);
         consumerConfig.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
         long startTime = currentTimeMillis();
-        List<String> actualValues = IntegrationTestUtils.waitUntilMinValuesRecordsReceived(consumerConfig, OUTPUT_TOPIC_NAME, expectedValues.size());
+        List<String> actualValues = KafkaFixture.waitUntilMinValuesRecordsReceived(consumerConfig, OUTPUT_TOPIC_NAME, expectedValues.size());
         streams.close();
         log.info("Received {} value(s) [{}ms]", actualValues.size(), currentTimeMillis() - startTime);
         assertThat(actualValues).containsExactlyElementsOf(expectedValues);
@@ -282,7 +282,7 @@ public class EventDeduplicationLambdaIntegrationTest {
         producerConfig.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, ByteArraySerializer.class);
         producerConfig.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
         long startTime = currentTimeMillis();
-        IntegrationTestUtils.produceValuesSynchronously(INPUT_TOPIC_NAME, inputValues, producerConfig);
+        KafkaFixture.produceValuesSynchronously(INPUT_TOPIC_NAME, inputValues, producerConfig);
         log.info("Produced {} input value(s) [{}ms]", inputValues.size(), currentTimeMillis() - startTime);
     }
 }
