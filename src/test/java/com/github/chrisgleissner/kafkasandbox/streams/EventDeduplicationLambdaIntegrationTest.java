@@ -13,10 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.github.chrisgleissner.jutil.kafka.streams;
+package com.github.chrisgleissner.kafkasandbox.streams;
 
 import com.github.chrisgleissner.jutil.kafka.fixture.IntegrationTestUtils;
 import com.salesforce.kafka.test.junit5.SharedKafkaTestResource;
+import com.github.chrisgleissner.kafkasandbox.fixture.EmbeddedSingleNodeKafkaCluster;
+import com.github.chrisgleissner.kafkasandbox.fixture.IntegrationTestUtils;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.common.serialization.ByteArrayDeserializer;
@@ -27,7 +30,6 @@ import org.apache.kafka.common.serialization.StringSerializer;
 import org.apache.kafka.streams.KafkaStreams;
 import org.apache.kafka.streams.KeyValue;
 import org.apache.kafka.streams.StreamsBuilder;
-import org.apache.kafka.streams.StreamsConfig;
 import org.apache.kafka.streams.kstream.KStream;
 import org.apache.kafka.streams.kstream.KeyValueMapper;
 import org.apache.kafka.streams.kstream.Transformer;
@@ -41,12 +43,16 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
-import java.util.Arrays;
 import java.util.List;
 import java.util.Properties;
-import java.util.UUID;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.IntStream;
 
+import static java.lang.System.currentTimeMillis;
+import static java.util.UUID.randomUUID;
+import static java.util.concurrent.TimeUnit.MINUTES;
+import static java.util.stream.Collectors.toList;
+import static org.apache.kafka.streams.StreamsConfig.*;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
@@ -72,6 +78,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * <p>
  * Note: This example uses lambda expressions and thus works with Java 8+ only.
  */
+@Slf4j
 public class EventDeduplicationLambdaIntegrationTest {
     private static final String INPUT_TOPIC_NAME = "inputTopic";
     private static final String OUTPUT_TOPIC_NAME = "outputTopic";
@@ -124,9 +131,8 @@ public class EventDeduplicationLambdaIntegrationTest {
          *                                     de-duping but forwarded as-is.
          */
         DeduplicationTransformer(long maintainDurationPerEventInMs, KeyValueMapper<K, V, E> idExtractor) {
-            if (maintainDurationPerEventInMs < 1) {
+            if (maintainDurationPerEventInMs < 1)
                 throw new IllegalArgumentException("maintain duration per event must be >= 1");
-            }
             leftDurationMs = maintainDurationPerEventInMs / 2;
             rightDurationMs = maintainDurationPerEventInMs - leftDurationMs;
             this.idExtractor = idExtractor;
@@ -158,10 +164,7 @@ public class EventDeduplicationLambdaIntegrationTest {
 
         private boolean isDuplicate(final E eventId) {
             long eventTime = context.timestamp();
-            WindowStoreIterator<Long> timeIterator = eventIdStore.fetch(
-                    eventId,
-                    eventTime - leftDurationMs,
-                    eventTime + rightDurationMs);
+            WindowStoreIterator<Long> timeIterator = eventIdStore.fetch(eventId, eventTime - leftDurationMs, eventTime + rightDurationMs);
             boolean isDuplicate = timeIterator.hasNext();
             timeIterator.close();
             return isDuplicate;
@@ -184,30 +187,30 @@ public class EventDeduplicationLambdaIntegrationTest {
     }
 
     @Test
-    void shouldRemoveDuplicatesFromTheInput() throws Exception {
-        String firstId = UUID.randomUUID().toString(); // e.g. "4ff3cb44-abcb-46e3-8f9a-afb7cc74fbb8"
-        String secondId = UUID.randomUUID().toString();
-        String thirdId = UUID.randomUUID().toString();
-        List<String> inputValues = Arrays.asList(firstId, secondId, firstId, firstId, secondId, thirdId,
-                thirdId, firstId, secondId);
-        List<String> expectedValues = Arrays.asList(firstId, secondId, thirdId);
+    public void shouldRemoveDuplicatesFromTheInput() throws Exception {
+        KafkaStreams streams = configureStreams();
+        List<String> ids = IntStream.range(0, 10_000).mapToObj(i -> randomUUID().toString()).collect(toList());
+        produceInput(ids);
+        verifyOutput(ids, streams);
+    }
 
+    private KafkaStreams configureStreams() {
         //
         // Step 1: Configure and start the processor topology.
         //
         StreamsBuilder builder = new StreamsBuilder();
 
         Properties streamsConfiguration = new Properties();
-        streamsConfiguration.put(StreamsConfig.APPLICATION_ID_CONFIG, "deduplication-lambda-integration-test");
-        streamsConfiguration.put(StreamsConfig.BOOTSTRAP_SERVERS_CONFIG, kafka.getKafkaConnectString());
-        streamsConfiguration.put(StreamsConfig.DEFAULT_KEY_SERDE_CLASS_CONFIG, Serdes.ByteArray().getClass().getName());
-        streamsConfiguration.put(StreamsConfig.DEFAULT_VALUE_SERDE_CLASS_CONFIG, Serdes.String().getClass().getName());
+        streamsConfiguration.put(APPLICATION_ID_CONFIG, "deduplication-lambda-integration-test");
+        streamsConfiguration.put(BOOTSTRAP_SERVERS_CONFIG, CLUSTER.bootstrapServers());
+        streamsConfiguration.put(DEFAULT_KEY_SERDE_CLASS_CONFIG, Serdes.ByteArray().getClass().getName());
+        streamsConfiguration.put(DEFAULT_VALUE_SERDE_CLASS_CONFIG, Serdes.String().getClass().getName());
         // The commit interval for flushing records to state stores and downstream must be lower than
         // this integration test's timeout (30 secs) to ensure we observe the expected processing results.
-        streamsConfiguration.put(StreamsConfig.COMMIT_INTERVAL_MS_CONFIG, TimeUnit.SECONDS.toMillis(10));
+        streamsConfiguration.put(COMMIT_INTERVAL_MS_CONFIG, TimeUnit.SECONDS.toMillis(10));
         streamsConfiguration.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
         // Use a temporary directory for storing state, which will be automatically removed after the test.
-        streamsConfiguration.put(StreamsConfig.STATE_DIR_CONFIG, TestUtils.tempDirectory().getAbsolutePath());
+        streamsConfiguration.put(STATE_DIR_CONFIG, TestUtils.tempDirectory().getAbsolutePath());
 
         // How long we "remember" an event.  During this time, any incoming duplicates of the event
         // will be, well, dropped, thereby de-duplicating the input data.
@@ -215,7 +218,7 @@ public class EventDeduplicationLambdaIntegrationTest {
         // The actual value depends on your use case.  To reduce memory and disk usage, you could
         // decrease the size to purge old windows more frequently at the cost of potentially missing out
         // on de-duplicating late-arriving records.
-        long maintainDurationPerEventInMs = TimeUnit.MINUTES.toMillis(10);
+        long maintainDurationPerEventInMs = MINUTES.toMillis(10);
 
         // The number of segments has no impact on "correctness".
         // Using more segments implies larger overhead but allows for more fined grained record expiration
@@ -250,30 +253,32 @@ public class EventDeduplicationLambdaIntegrationTest {
 
         KafkaStreams streams = new KafkaStreams(builder.build(), streamsConfiguration);
         streams.start();
+        return streams;
+    }
 
-        //
-        // Step 2: Produce some input data to the input topic.
-        //
-        Properties producerConfig = new Properties();
-        producerConfig.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, kafka.getKafkaConnectString());
-        producerConfig.put(ProducerConfig.ACKS_CONFIG, "all");
-        producerConfig.put(ProducerConfig.RETRIES_CONFIG, 0);
-        producerConfig.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, ByteArraySerializer.class);
-        producerConfig.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
-        IntegrationTestUtils.produceValuesSynchronously(INPUT_TOPIC_NAME, inputValues, producerConfig);
-
-        //
-        // Step 3: Verify the application's output data.
-        //
+    private void verifyOutput(List<String> expectedValues, KafkaStreams streams) throws InterruptedException {
         Properties consumerConfig = new Properties();
-        consumerConfig.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, kafka.getKafkaConnectString());
+        consumerConfig.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, CLUSTER.bootstrapServers());
         consumerConfig.put(ConsumerConfig.GROUP_ID_CONFIG, "deduplication-integration-test-standard-consumer");
         consumerConfig.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
         consumerConfig.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, ByteArrayDeserializer.class);
         consumerConfig.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
-        List<String> actualValues = IntegrationTestUtils.waitUntilMinValuesRecordsReceived(consumerConfig,
-                OUTPUT_TOPIC_NAME, expectedValues.size());
+        long startTime = currentTimeMillis();
+        List<String> actualValues = IntegrationTestUtils.waitUntilMinValuesRecordsReceived(consumerConfig, outputTopic, expectedValues.size());
         streams.close();
+        log.info("Received {} value(s) [{}ms]", actualValues.size(), currentTimeMillis() - startTime);
         assertThat(actualValues).containsExactlyElementsOf(expectedValues);
+    }
+
+    private void produceInput(List<String> inputValues) throws java.util.concurrent.ExecutionException, InterruptedException {
+        Properties producerConfig = new Properties();
+        producerConfig.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, CLUSTER.bootstrapServers());
+        producerConfig.put(ProducerConfig.ACKS_CONFIG, "all");
+        producerConfig.put(ProducerConfig.RETRIES_CONFIG, 0);
+        producerConfig.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, ByteArraySerializer.class);
+        producerConfig.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
+        long startTime = currentTimeMillis();
+        IntegrationTestUtils.produceValuesSynchronously(inputTopic, inputValues, producerConfig);
+        log.info("Produced {} input value(s) [{}ms]", inputValues.size(), currentTimeMillis() - startTime);
     }
 }
