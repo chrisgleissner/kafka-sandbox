@@ -7,7 +7,10 @@ import lombok.Value;
 import lombok.experimental.SuperBuilder;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.avro.Schema;
-import org.apache.avro.io.*;
+import org.apache.avro.io.Decoder;
+import org.apache.avro.io.DecoderFactory;
+import org.apache.avro.io.Encoder;
+import org.apache.avro.io.EncoderFactory;
 import org.apache.avro.reflect.*;
 import org.junit.jupiter.api.Test;
 
@@ -31,8 +34,8 @@ public class AvroReflectTest {
                 "\"com.github.chrisgleissner.kafkasandbox.avro.AvroReflectTest$\""));
         assertThat(jsonSchema).contains("stringList");
         assertThat(jsonSchema).doesNotContain("sHidden");
-        String avsc = schema.toString(true);
 
+        String avsc = schema.toString(true);
         log.info("Avro schema:\n" + avsc);
         Schema schema2 = new Schema.Parser().parse(avsc);
         assertThat(schema).isEqualTo(schema2);
@@ -57,20 +60,20 @@ public class AvroReflectTest {
     }
 
     @Data @NoArgsConstructor @SuperBuilder
-    public static class Foo {
-        @Nullable private int i;
-        @Nullable private Integer iWrapper;
+    static class Foo {
+        private int i;
+        private Integer iWrapper;
     }
 
     @Value @NoArgsConstructor(force = true) @AllArgsConstructor @SuperBuilder
-    public static class Bar extends Foo {
+    static class Bar extends Foo {
         String s;
-        @Nullable byte[] byteArray;
-        @Nullable @AvroIgnore String sHidden;
-        @Nullable BigDecimal[] bdArray;
+        byte[] byteArray;
+        @AvroIgnore String sHidden;
+        BigDecimal[] bdArray;
         @AvroName("stringList")
-        @Nullable List<String> sList;
-        @Nullable List<Integer> iList;
-        @Nullable Map<Long, String> map;
+        List<String> sList;
+        List<Integer> iList;
+        Map<Long, String> map;
     }
 }
