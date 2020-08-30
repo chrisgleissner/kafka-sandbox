@@ -1,15 +1,30 @@
 ---
 version: '3.8'
 services:
+
+  ###########################################################################
+  # Elasticsearch Stack
+  ###########################################################################
+#  kibana:
+#    image: docker.elastic.co/kibana/kibana:${ELASTIC_VERSION}
+#    container_name: kibana
+#    ports:
+#      - 5601:5601
+#    environment:
+#      ELASTICSEARCH_URL: http://elasticsearch1:9200
+#      ELASTICSEARCH_HOSTS: http://elasticsearch1:9200
+
+  # One-time setup: sudo sysctl -w vm.max_map_count=262144
   elasticsearch:
-    image: docker.elastic.co/elasticsearch/elasticsearch:7.9.0
+    image: docker.elastic.co/elasticsearch/elasticsearch:${ELASTIC_VERSION}
     container_name: elasticsearch
     environment:
       - node.name=elasticsearch
       - cluster.name=elasticsearch-docker-cluster
+#      - discovery.seed_hosts=elasticsearch2
       - cluster.initial_master_nodes=elasticsearch
       - bootstrap.memory_lock=true
-      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+      - "ES_JAVA_OPTS=-Xms256m -Xmx512m"
     ulimits:
       memlock:
         soft: -1
@@ -19,6 +34,28 @@ services:
     ports:
       - 9200:9200
 
+#  elasticsearch2:
+#    image: docker.elastic.co/elasticsearch/elasticsearch:${ELASTIC_VERSION}
+#    container_name: elasticsearch2
+#    environment:
+#      - node.name=elasticsearch2
+#      - cluster.name=elasticsearch-docker-cluster
+#      - discovery.seed_hosts=elasticsearch
+#      - cluster.initial_master_nodes=elasticsearch,elasticsearch2
+#      - bootstrap.memory_lock=true
+#      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+#    ulimits:
+#      memlock:
+#        soft: -1
+#        hard: -1
+#    volumes:
+#      - elasticsearch-data2:/usr/share/elasticsearch/data
+#    ports:
+#      - 9201:9201
+
+  ###########################################################################
+  # Kafka Stack
+  ###########################################################################
   zookeeper:
     image: confluentinc/cp-zookeeper:${CONFLUENT_VERSION}
     hostname: zookeeper
@@ -42,6 +79,8 @@ services:
       - "9092:9092"
       - "9101:9101"
       - "9095:9095"
+    volumes:
+      - kafka-data:/var/lib/kafka/data
     environment:
       KAFKA_BROKER_ID: 1
       KAFKA_ZOOKEEPER_CONNECT: 'zookeeper:2181'
@@ -51,6 +90,7 @@ services:
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
       KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_HEAP_OPTS: "-Xms256m -Xmx512m"
       KAFKA_JMX_PORT: 9101
       # Prometheus metrics exposed at http://localhost:9095/metrics
       KAFKA_OPTS: -javaagent:/opt/jmx-exporter/jmx-exporter-javaagent.jar=9095:/etc/jmx-exporter/jmx-exporter-kafka.yml
@@ -83,6 +123,7 @@ services:
       CONNECT_REST_ADVERTISED_HOST_NAME: kafka-connect
       CONNECT_REST_PORT: 8083
       CONNECT_GROUP_ID: compose-connect-group
+      KAFKA_HEAP_OPTS: "-Xms256m -Xmx512m"
       CONNECT_CONFIG_STORAGE_TOPIC: docker-connect-configs
       CONNECT_CONFIG_STORAGE_REPLICATION_FACTOR: 1
       CONNECT_OFFSET_FLUSH_INTERVAL_MS: 10000
@@ -96,36 +137,36 @@ services:
       CONNECT_INTERNAL_KEY_CONVERTER: "org.apache.kafka.connect.json.JsonConverter"
       CONNECT_INTERNAL_VALUE_CONVERTER: "org.apache.kafka.connect.json.JsonConverter"
       CONNECT_ZOOKEEPER_CONNECT: 'zookeeper:2181'
-      CONNECT_PLUGIN_PATH: "/usr/share/java"
+      CONNECT_PLUGIN_PATH: "/usr/share/java/kafka-connect-elasticsearch,/usr/share/java/kafka-connect-jdbc,/usr/share/java/schema-registry"
       CONNECT_LOG4J_LOGGERS: org.apache.zookeeper=ERROR,org.I0Itec.zkclient=ERROR,org.reflections=ERROR
 
-  kafka-ksqldb-server:
-    image: confluentinc/cp-ksqldb-server:${CONFLUENT_VERSION}
-    hostname: kafka-ksqldb-server
-    container_name: kafka-ksqldb-server
-    depends_on:
-      - kafka-broker
-      - kafka-connect
-    ports:
-      - "8088:8088"
-    environment:
-      KSQL_CONFIG_DIR: "/etc/ksql"
-      KSQL_BOOTSTRAP_SERVERS: "kafka-broker:29092"
-      KSQL_HOST_NAME: kafka-ksqldb-server
-      KSQL_LISTENERS: "http://0.0.0.0:8088"
-      KSQL_CACHE_MAX_BYTES_BUFFERING: 0
-      KSQL_KSQL_SCHEMA_REGISTRY_URL: "http://kafka-schema-registry:8081"
-      KSQL_KSQL_CONNECT_URL: "http://kafka-connect:8083"
-
-  kafka-ksqldb-cli:
-    image: confluentinc/cp-ksqldb-cli:${CONFLUENT_VERSION}
-    container_name: kafka-ksqldb-cli
-    depends_on:
-      - kafka-broker
-      - kafka-connect
-      - kafka-ksqldb-server
-    entrypoint: /bin/sh
-    tty: true
+#  kafka-ksqldb-server:
+#    image: confluentinc/cp-ksqldb-server:${CONFLUENT_VERSION}
+#    hostname: kafka-ksqldb-server
+#    container_name: kafka-ksqldb-server
+#    depends_on:
+#      - kafka-broker
+#      - kafka-connect
+#    ports:
+#      - "8088:8088"
+#    environment:
+#      KSQL_CONFIG_DIR: "/etc/ksql"
+#      KSQL_BOOTSTRAP_SERVERS: "kafka-broker:29092"
+#      KSQL_HOST_NAME: kafka-ksqldb-server
+#      KSQL_LISTENERS: "http://0.0.0.0:8088"
+#      KSQL_CACHE_MAX_BYTES_BUFFERING: 0
+#      KSQL_KSQL_SCHEMA_REGISTRY_URL: "http://kafka-schema-registry:8081"
+#      KSQL_KSQL_CONNECT_URL: "http://kafka-connect:8083"
+#
+#  kafka-ksqldb-cli:
+#    image: confluentinc/cp-ksqldb-cli:${CONFLUENT_VERSION}
+#    container_name: kafka-ksqldb-cli
+#    depends_on:
+#      - kafka-broker
+#      - kafka-connect
+#      - kafka-ksqldb-server
+#    entrypoint: /bin/sh
+#    tty: true
 
   kafka-rest-proxy:
     image: confluentinc/cp-kafka-rest:${CONFLUENT_VERSION}
@@ -145,4 +186,8 @@ services:
 
 volumes:
   elasticsearch-data:
+    driver: local
+#  elasticsearch-data2:
+#    driver: local
+  kafka-data:
     driver: local

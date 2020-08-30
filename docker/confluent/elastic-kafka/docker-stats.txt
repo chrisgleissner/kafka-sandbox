@@ -1,0 +1,7 @@
+CONTAINER ID        NAME                    CPU %               MEM USAGE / LIMIT     MEM %               NET I/O             BLOCK I/O           PIDS
+66f108ad8ebf        elasticsearch           0.25%               842.7MiB / 9.695GiB   8.49%               4.68kB / 0B         0B / 389kB          55
+7c3fcd35b806        zookeeper               0.06%               71.92MiB / 9.695GiB   0.72%               51.2kB / 69kB       0B / 188kB          48
+4425002f0552        kafka-broker            0.93%               479.7MiB / 9.695GiB   4.83%               264kB / 258kB       0B / 860kB          81
+27215b3b5a29        kafka-schema-registry   0.26%               347.2MiB / 9.695GiB   3.50%               69.9kB / 55.6kB     0B / 73.7kB         38
+4a2f8cf8676a        kafka-rest-proxy        0.06%               256.3MiB / 9.695GiB   2.58%               6.69kB / 2kB        0B / 41kB           35
+c96d438e114d        kafka-connect           0.44%               677.2MiB / 9.695GiB   6.82%               159kB / 143kB       0B / 36.9kB         42
