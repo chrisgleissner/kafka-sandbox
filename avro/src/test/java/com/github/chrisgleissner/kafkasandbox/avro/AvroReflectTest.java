@@ -25,7 +25,7 @@ public class AvroReflectTest {
 
     @Test
     void canGenerateSchemaViaReflection() {
-        Schema schema = ReflectData.get().getSchema(Bar.class);
+        Schema schema = ReflectData.AllowNull.get().getSchema(Bar.class);
         String jsonSchema = schema.toString(false);
         assertThat(jsonSchema.startsWith("{\"type\":\"record\",\"name\":\"Bar\",\"namespace\":" +
                 "\"com.github.chrisgleissner.kafkasandbox.avro.AvroReflectTest$\""));
@@ -39,18 +39,20 @@ public class AvroReflectTest {
     }
 
     @Test
-    void canMarshallNullFields() throws IOException {
-        Bar bar = Bar.builder().s("1").build();
+    void handleNullFields() throws IOException {
+        ReflectData.AllowNull reflectData = ReflectData.AllowNull.get();
 
+        Bar bar = Bar.builder().s("1").build();
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
         Encoder encoder = EncoderFactory.get().binaryEncoder(baos, null);
-        new ReflectDatumWriter<>(Bar.class).write(bar, encoder);
+        new ReflectDatumWriter<>(Bar.class, reflectData).write(bar, encoder);
         encoder.flush();
         byte[] bytes = baos.toByteArray();
         log.info("Marshalled {} to {} byte(s)", bar, bytes.length);
 
         Decoder decoder = DecoderFactory.get().binaryDecoder(new ByteArrayInputStream(bytes), null);
-        Bar bar2 = new ReflectDatumReader<>(Bar.class).read(null, decoder);
+        Schema schema = reflectData.getSchema(Bar.class);
+        Bar bar2 = new ReflectDatumReader<Bar>(schema, schema, reflectData).read(Bar.builder().build(), decoder);
         assertThat(bar2.getS()).isEqualTo("1");
     }
 
