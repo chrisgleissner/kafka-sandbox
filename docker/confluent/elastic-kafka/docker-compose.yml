@@ -30,11 +30,9 @@ services:
       ZOOKEEPER_TICK_TIME: 2000
 
   kafka-broker:
-    # TODO Fix build of custom image that includes JMX-based metric export for Prometheus scraping
-    #build:
-    #  context: kafka-broker
-    #image: cp-kafka-with-monitoring
-    image: confluentinc/cp-kafka:${CONFLUENT_VERSION}
+    build:
+      context: kafka-broker
+    image: cp-kafka-with-monitoring
     hostname: kafka-broker
     container_name: kafka-broker
     depends_on:
@@ -43,6 +41,7 @@ services:
       - "29092:29092"
       - "9092:9092"
       - "9101:9101"
+      - "9095:9095"
     environment:
       KAFKA_BROKER_ID: 1
       KAFKA_ZOOKEEPER_CONNECT: 'zookeeper:2181'
@@ -53,9 +52,8 @@ services:
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
       KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
       KAFKA_JMX_PORT: 9101
-      # TODO Required for cp-kafka-with-monitoring
-      #ZOOKEEPER_CLIENT_PORT: 2181
-      #KAFKA_OPTS: -javaagent:/usr/app/jmx_prometheus_javaagent.jar=7071:/usr/app/prom-jmx-agent-config.yml
+      # Prometheus metrics exposed at http://localhost:9095/metrics
+      KAFKA_OPTS: -javaagent:/opt/jmx-exporter/jmx-exporter-javaagent.jar=9095:/etc/jmx-exporter/jmx-exporter-kafka.yml
 
   kafka-schema-registry:
     image: confluentinc/cp-schema-registry:${CONFLUENT_VERSION}
@@ -112,12 +110,12 @@ services:
       - "8088:8088"
     environment:
       KSQL_CONFIG_DIR: "/etc/ksql"
-      KSQL_BOOTSTRAP_SERVERS: "broker:29092"
+      KSQL_BOOTSTRAP_SERVERS: "kafka-broker:29092"
       KSQL_HOST_NAME: kafka-ksqldb-server
       KSQL_LISTENERS: "http://0.0.0.0:8088"
       KSQL_CACHE_MAX_BYTES_BUFFERING: 0
-      KSQL_KSQL_SCHEMA_REGISTRY_URL: "http://schema-registry:8081"
-      KSQL_KSQL_CONNECT_URL: "http://connect:8083"
+      KSQL_KSQL_SCHEMA_REGISTRY_URL: "http://kafka-schema-registry:8081"
+      KSQL_KSQL_CONNECT_URL: "http://kafka-connect:8083"
 
   kafka-ksqldb-cli:
     image: confluentinc/cp-ksqldb-cli:${CONFLUENT_VERSION}
