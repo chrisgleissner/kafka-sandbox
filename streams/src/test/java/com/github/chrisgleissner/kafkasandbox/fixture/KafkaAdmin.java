@@ -3,6 +3,7 @@ package com.github.chrisgleissner.kafkasandbox.fixture;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.clients.admin.AdminClient;
+import org.apache.kafka.clients.admin.DeleteTopicsOptions;
 import org.apache.kafka.clients.admin.NewTopic;
 
 import java.util.List;
