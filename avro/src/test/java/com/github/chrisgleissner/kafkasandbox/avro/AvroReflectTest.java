@@ -31,7 +31,11 @@ public class AvroReflectTest {
                 "\"com.github.chrisgleissner.kafkasandbox.avro.AvroReflectTest$\""));
         assertThat(jsonSchema).contains("stringList");
         assertThat(jsonSchema).doesNotContain("sHidden");
-        log.info("JSON schema:\n" + schema.toString(true));
+        String avsc = schema.toString(true);
+
+        log.info("Avro schema:\n" + avsc);
+        Schema schema2 = new Schema.Parser().parse(avsc);
+        assertThat(schema).isEqualTo(schema2);
     }
 
     @Test
