@@ -1,0 +1,10 @@
+CONTAINER ID        NAME                CPU %               MEM USAGE / LIMIT     MEM %               NET I/O             BLOCK I/O           PIDS
+383f841817a3        ksql-datagen        0.00%               1.988MiB / 9.695GiB   0.02%               10.8kB / 3.54kB     106kB / 32.8kB      1
+f4aae3338a3c        ksqldb-cli          0.00%               13.2MiB / 9.695GiB    0.13%               7.45kB / 0B         1.52MB / 0B         1
+fcabf66cc5ec        ksqldb-server       3.17%               275.2MiB / 9.695GiB   2.77%               516kB / 232kB       12.3kB / 65.5kB     32
+320b6fd6547d        connect             0.50%               2.066GiB / 9.695GiB   21.31%              504kB / 473kB       368MB / 36.9kB      42
+0a2e25a1e408        rest-proxy          0.08%               243.7MiB / 9.695GiB   2.45%               29.3kB / 7.38kB     356kB / 41kB        37
+66d9f7fe121c        schema-registry     0.99%               337.6MiB / 9.695GiB   3.40%               186kB / 165kB       37.5MB / 73.7kB     39
+6e9dbf75dadb        broker              1.64%               424.1MiB / 9.695GiB   4.27%               954kB / 1.27MB      573kB / 774kB       79
+4cc783fe9213        zookeeper           0.10%               83.29MiB / 9.695GiB   0.84%               117kB / 90.7kB      6.93MB / 680kB      48
+
