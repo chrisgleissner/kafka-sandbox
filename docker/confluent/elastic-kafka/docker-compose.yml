@@ -18,13 +18,14 @@ services:
   elasticsearch:
     image: docker.elastic.co/elasticsearch/elasticsearch:${ELASTIC_VERSION}
     container_name: elasticsearch
+    restart: unless-stopped
     environment:
       - node.name=elasticsearch
       - cluster.name=elasticsearch-docker-cluster
-#      - discovery.seed_hosts=elasticsearch2
+      - discovery.seed_hosts=elasticsearch2
       - cluster.initial_master_nodes=elasticsearch
       - bootstrap.memory_lock=true
-      - "ES_JAVA_OPTS=-Xms256m -Xmx512m"
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
     ulimits:
       memlock:
         soft: -1
@@ -34,24 +35,24 @@ services:
     ports:
       - 9200:9200
 
-#  elasticsearch2:
-#    image: docker.elastic.co/elasticsearch/elasticsearch:${ELASTIC_VERSION}
-#    container_name: elasticsearch2
-#    environment:
-#      - node.name=elasticsearch2
-#      - cluster.name=elasticsearch-docker-cluster
-#      - discovery.seed_hosts=elasticsearch
-#      - cluster.initial_master_nodes=elasticsearch,elasticsearch2
-#      - bootstrap.memory_lock=true
-#      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
-#    ulimits:
-#      memlock:
-#        soft: -1
-#        hard: -1
-#    volumes:
-#      - elasticsearch-data2:/usr/share/elasticsearch/data
-#    ports:
-#      - 9201:9201
+  elasticsearch2:
+    image: docker.elastic.co/elasticsearch/elasticsearch:${ELASTIC_VERSION}
+    container_name: elasticsearch2
+    environment:
+      - node.name=elasticsearch2
+      - cluster.name=elasticsearch-docker-cluster
+      - discovery.seed_hosts=elasticsearch
+      - cluster.initial_master_nodes=elasticsearch,elasticsearch2
+      - bootstrap.memory_lock=true
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    volumes:
+      - elasticsearch-data2:/usr/share/elasticsearch/data
+    ports:
+      - 9201:9201
 
   ###########################################################################
   # Kafka Stack
@@ -60,6 +61,7 @@ services:
     image: confluentinc/cp-zookeeper:${CONFLUENT_VERSION}
     hostname: zookeeper
     container_name: zookeeper
+    restart: unless-stopped
     ports:
       - "2181:2181"
     environment:
@@ -99,6 +101,7 @@ services:
     image: confluentinc/cp-schema-registry:${CONFLUENT_VERSION}
     hostname: kafka-schema-registry
     container_name: kafka-schema-registry
+    restart: unless-stopped
     depends_on:
       - zookeeper
       - kafka-broker
@@ -107,11 +110,13 @@ services:
     environment:
       SCHEMA_REGISTRY_HOST_NAME: kafka-schema-registry
       SCHEMA_REGISTRY_KAFKASTORE_CONNECTION_URL: 'zookeeper:2181'
+      KAFKA_HEAP_OPTS: "-Xms256m -Xmx512m"
 
   kafka-connect:
     image: confluentinc/cp-kafka-connect:${CONFLUENT_VERSION}
     hostname: kafka-connect
     container_name: kafka-connect
+    restart: unless-stopped
     depends_on:
       - zookeeper
       - kafka-broker
@@ -144,6 +149,7 @@ services:
 #    image: confluentinc/cp-ksqldb-server:${CONFLUENT_VERSION}
 #    hostname: kafka-ksqldb-server
 #    container_name: kafka-ksqldb-server
+#    restart: unless-stopped
 #    depends_on:
 #      - kafka-broker
 #      - kafka-connect
@@ -161,6 +167,7 @@ services:
 #  kafka-ksqldb-cli:
 #    image: confluentinc/cp-ksqldb-cli:${CONFLUENT_VERSION}
 #    container_name: kafka-ksqldb-cli
+#    restart: unless-stopped
 #    depends_on:
 #      - kafka-broker
 #      - kafka-connect
@@ -170,6 +177,7 @@ services:
 
   kafka-rest-proxy:
     image: confluentinc/cp-kafka-rest:${CONFLUENT_VERSION}
+    restart: unless-stopped
     depends_on:
       - zookeeper
       - kafka-broker
@@ -183,11 +191,12 @@ services:
       KAFKA_REST_BOOTSTRAP_SERVERS: 'kafka-broker:29092'
       KAFKA_REST_LISTENERS: "http://0.0.0.0:8082"
       KAFKA_REST_SCHEMA_REGISTRY_URL: 'http://kafka-schema-registry:8081'
+      KAFKA_HEAP_OPTS: "-Xms128m -Xmx256m"
 
 volumes:
   elasticsearch-data:
     driver: local
-#  elasticsearch-data2:
-#    driver: local
+  elasticsearch-data2:
+    driver: local
   kafka-data:
     driver: local
