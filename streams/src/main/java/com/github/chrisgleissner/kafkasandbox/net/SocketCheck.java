@@ -18,7 +18,7 @@ public class SocketCheck {
             log.info("Connected to {}:{} [{}mics]", host, port, (nanoTime() - startTime) / 1000);
             return true;
         } catch (Exception e) {
-            log.info("No socket listening on {}:{}; encountered {} after {}mics", host, port, e.getClass().getName(),
+            log.info("Could not connect to {}:{} due to {} [{}mics]", host, port, e.getClass().getSimpleName(),
                     (nanoTime() - startTime) / 1000);
             return false;
         }
